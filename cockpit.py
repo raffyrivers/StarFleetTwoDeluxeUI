@@ -833,7 +833,7 @@ def _draw_computer(state):
     panel = P["Computer Display"]
 
 
-    # print("ELEMENTS:", [e.label for e in panel.elements if isinstance(e, Button)])
+    print("ELEMENTS:", [e.label for e in panel.elements if isinstance(e, Button)])
 
     if panel.primary_mode != None:
         curr_sub = panel.sub_labels.get(panel.primary_mode,[])
@@ -882,7 +882,7 @@ def _draw_computer(state):
 
 
 
-        if panel.back_btn[0] not in panel.elements:
+        if panel.back_btn[0] not in panel.elements and prime_mode != None:
             panel.elements.append(panel.back_btn[0])
 
 def _draw_computer_landing(screen, state):
