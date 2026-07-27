@@ -235,9 +235,9 @@ def _build_computer():
     MAIN_MENU = ["Combat Status", "Information", "Special Services", "Self-Destruct"]
     panel.main_menu_btn = []
     panel.back_btn = []
+
     Display(panel, "options", (90, 250), (5, 5))
     Display(panel, "screen", (475, 250), (100, 5))
-
     #initialize buttons in each but append from panel to avoid autodraw
 
     x = 10
@@ -245,8 +245,6 @@ def _build_computer():
     w = 80
     h = 20
     gap = 3
-
-
 
     panel.sub_labels = {
         "Combat Status": ["Enemy", "Krellan"],
@@ -316,23 +314,16 @@ def _build_computer():
 
         else:
             panel.combat_btn.append(
-                Button(
-                    panel,
-                    (menu_x, menu_y + c * (menu_h + menu_gap), menu_w, menu_h),
-                    subLvl,
-                    key=pygame.K_k,
-                    group="combat_sub",
-                    on_toggle=lambda b, m=mode: setattr(
-                        panel,
-                        "sub_mode",
-                        "combat_krellan" if (b.active) else None
-                    )
-                )
-            )
+                Button(panel,(menu_x, menu_y + c * (menu_h + menu_gap), menu_w, menu_h),subLvl,key=pygame.K_k,group="combat_sub",
+                    on_toggle=lambda b, m=mode: setattr(panel,"sub_mode", "combat_krellan" if b.active else None)))
 
     for i, subLvl in enumerate(panel.sub_labels["Information"]):
-        panel.info_btn.append(Button(panel,(x, y_start + i * (h + gap), w, h), subLvl, group="info_sub",
-        on_toggle=lambda b, mode= subLvl.lower(): setattr(panel,"sub_mode", mode if (b.active and m == "krellan") else None)))
+        panel.info_btn.append(Button(panel,(x, y_start + i * (h + gap), w, h), subLvl, group="information_sub",
+        on_toggle=lambda b, mode= subLvl.lower(): setattr(panel,"sub_mode", mode if b.active else None)))
+
+    for s, subLvl in enumerate(panel.sub_labels["Special Services"]):
+        panel.special_serv_btn.append(Button(panel,(x, y_start + i * (h + gap), w, h), subLvl, group="special_sub",
+        on_toggle=lambda b, mode=subLvl.lower(): setattr(panel,"sub_mode",mode if b.active else None)))
 
     N = len(panel.combat_btn)
     bottom_y = y_start + N * (h + gap)
@@ -365,6 +356,10 @@ def _build_computer():
     for i in panel.info_btn:
         if i in panel.elements:
             panel.elements.remove(i)
+
+    for s in panel.special_serv_btn:
+        if s in panel.elements:
+            panel.elements.remove(s)
 
 
 def _build_data():
@@ -833,7 +828,7 @@ def _draw_computer(state):
     panel = P["Computer Display"]
 
 
-    print("ELEMENTS:", [e.label for e in panel.elements if isinstance(e, Button)])
+    # print("ELEMENTS:", [e.label for e in panel.elements if isinstance(e, Button)])
 
     if panel.primary_mode != None:
         curr_sub = panel.sub_labels.get(panel.primary_mode,[])
@@ -864,8 +859,6 @@ def _draw_computer(state):
     #main_menu
     if prime_mode == None:
         _draw_computer_landing(screen, state)
-        panel.elements.extend(panel.main_menu_btn)
-
         for b in panel.main_menu_btn:
             if b not in panel.elements:
                 panel.elements.append(b)
@@ -874,16 +867,31 @@ def _draw_computer(state):
         #sub_menu
         if prime_mode == "combat status":
             _draw_computer_combat_stats(screen, state)
-            panel.elements.extend(panel.combat_btn)
+            for e in panel.combat_btn:
+                if e not in panel.elements:
+                    panel.elements.append(e)
 
         if prime_mode == "information":
             _draw_computer_database_page(screen, state,prime_mode)
-            panel.elements.extend(panel.info_btn)
+            for e in panel.info_btn:
+                if e not in panel.elements:
+                    panel.elements.append(e)
+
+        if prime_mode == "self_destruct":
+            _draw_computer_self_destruct(screen, state)
+
+        if prime_mode == "special services":
+            for e in panel.special_serv_btn:
+                if e not in panel.elements:
+                    panel.elements.append(e)
 
 
 
         if panel.back_btn[0] not in panel.elements and prime_mode != None:
             panel.elements.append(panel.back_btn[0])
+
+    if panel.back_btn[0] in panel.elements and prime_mode == None:
+        panel.elements.remove(panel.back_btn[0])
 
 def _draw_computer_landing(screen, state):
     surf = screen.surf
