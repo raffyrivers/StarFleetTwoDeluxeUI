@@ -58,6 +58,12 @@ class NavigationState:
     in_orbit: bool = True
     mode: str = "In Orbit"
 
+    @property
+    def galactic_position(self):
+        """Continuous map position, including progress through the current region."""
+        return (self.region_x + self.system_x / 50.0,
+                self.region_y + self.system_y / 50.0)
+
     def move(self, dt, hyper_velocity, space_velocity, rest_mode=False):
         if rest_mode:
             return

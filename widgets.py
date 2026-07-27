@@ -66,8 +66,17 @@ class Panel:
             fit_text(surface, self.tab_label, tab.inflate(-6, 0), BLACK, 13)
         else:
             tab_w = self.tab_width or min(self.width, len(self.tab_label) * 9 + 16)
-            tab = pygame.Rect(self.x, self.y + 3, tab_w, 18)
-            fit_text(surface, self.tab_label, tab.inflate(6, 0), BLACK, 13)
+            # Inline headers (currently the Star Map) share their row with
+            # controls. Keep the title inside the panel and align it to the
+            # same 16px header grid instead of expanding text past the frame.
+            tab = pygame.Rect(self.x + 4, self.y + 4, tab_w, 16)
+            pygame.draw.rect(surface, PANEL_BG, tab)
+            pygame.draw.line(surface, BEVEL_LIGHT, tab.topleft, tab.topright)
+            pygame.draw.line(surface, BEVEL_LIGHT, tab.topleft, tab.bottomleft)
+            pygame.draw.line(surface, BEVEL_DARK, tab.bottomleft, tab.bottomright)
+            pygame.draw.line(surface, BEVEL_DARK, tab.topright, tab.bottomright)
+            fit_text(surface, self.tab_label, tab.inflate(-6, -2), BLACK, 13,
+                     align="left")
 
 
 class Button:

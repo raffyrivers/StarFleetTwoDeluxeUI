@@ -111,6 +111,10 @@ class ShipState:
         self.nav.region_y = value
 
     @property
+    def galactic_position(self):
+        return self.nav.galactic_position
+
+    @property
     def system_x(self):
         return self.nav.system_x
 

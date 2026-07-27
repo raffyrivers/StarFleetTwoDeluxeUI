@@ -13,6 +13,20 @@ class GameplayStateTests(unittest.TestCase):
         self.assertLess(state.energy_units, start[2])
         self.assertGreater(state.energy_usage, 20)
 
+    def test_galactic_position_moves_continuously_across_region_boundary(self):
+        state = ShipState()
+        state.region_x = 4
+        state.system_x = 49.9
+        state.nav.actual_heading = 90
+        before = state.galactic_position
+
+        state.nav.move(0.1, hyper_velocity=0, space_velocity=2)
+
+        self.assertEqual(state.region_x, 5)
+        self.assertGreater(state.galactic_position[0], before[0])
+        self.assertAlmostEqual(state.galactic_position[0] - before[0], 0.11 / 50)
+        self.assertAlmostEqual(state.galactic_position[1], before[1])
+
     def test_sideslip_changes_actual_heading_not_set_course(self):
         state = ShipState()
         course = state.nav_course
