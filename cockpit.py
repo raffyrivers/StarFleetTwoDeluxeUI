@@ -8,7 +8,8 @@ always fits its box and the code stays compact.
 import math
 import random
 import pygame
-import core
+from threeDEngine import wireframe_display as wfd
+from threeDEngine import wireframe as wf
 from core import (BLACK, PANEL_BG, FRAME, FRAME_DIM, BUTTON_FACE, CYAN, GREEN,
                   RED, YELLOW, GREY, MAGENTA, WHITE, color, font, fit_text,
                   text_line, asset)
@@ -209,20 +210,21 @@ def _build_science():
 
 def _build_navigation():
     panel = P["Navigation Console"]
-    orbit = Display(panel, "orbit", (210, 210), (5, 24))
-    texture = asset("notEarth.png")
-    orbit.planet_frames = [
-        _project_sphere_texture(
-            texture, 172, frame / SPHERE_FRAME_COUNT
-        )
-        for frame in range(SPHERE_FRAME_COUNT)
-    ]
     Display(panel, "system", (210, 210), (225, 24))
     Display(panel, "orbital display", (210, 80), (5, 245))
     Display(panel, "planets display", (210, 80), (225, 245))
+    objectDisplay = wfd.ProjectionViewer(panel, "object display", (210, 210), (5, 24))
+    shape = wf.Sphere((105, 105, 0), 90)
+    sphere = wf.Wireframe()
+    sphere.addNodes(shape.buildVertices())
+    objectDisplay.addWireframe("sphere", sphere)
+    wfd.ProjectionViewer.rotateFrame(sphere, 'X', math.pi/2)
+    wfd.ProjectionViewer.initTexture(sphere, "assets/notEarth.png")
+
     Text(panel, (5, 8), "Orbital Displays", "cyan", 11)
     Text(panel, (228, 8), "System Map", "cyan", 11)
     Text(panel, (305, 233), "Planets", BLACK, 11)
+    Button(panel, (7, 26, 67, 13), "Show Orbit", key=pygame.K_3, group="orbit", text_size=11, momentary=True) # TODO: Show satellites around planet 
     Button(panel, (7, 233, 67, 13), "Objects", key=pygame.K_i, group="nav",
            active=True, text_size=11)
     Button(panel, (77, 233, 67, 13), "Orbit Zones", key=pygame.K_o, group="nav", text_size=11)
@@ -236,6 +238,7 @@ def _build_navigation_data():
     Button(panel, (122, 62, 66, 18), "Evasive", text_size=12)
     Button(panel, (126, 94, 28, 22), "<<", text_size=16)
     Button(panel, (160, 94, 28, 22), ">>", text_size=16)
+    
 
 
 def _build_star_map():
@@ -403,14 +406,13 @@ def _build_combat():
     for b in panel.elements:
         if isinstance(b, Button) and b.group and b.group.startswith("cmb_"):
             b.group = None
-    # Shield modes form a compact two-by-two control group below the shield ring.
-    # The extra height keeps the longest label legible without touching its frame.
-    Button(panel, (491, 299, 75, 19), "Auto", key=pygame.K_m, group="shield", text_size=10)
-    Button(panel, (570, 299, 75, 19), "Manual", key=pygame.K_COMMA, group="shield",
+    # Shield mode radio buttons sit on the shields sub-panel.
+    Button(panel, (493, 304, 74, 16), "Auto", key=pygame.K_m, group="shield", text_size=10)
+    Button(panel, (573, 304, 74, 16), "Manual", key=pygame.K_COMMA, group="shield",
            active=True, text_size=10)
-    Button(panel, (491, 320, 75, 19), "Battle Entry", key=pygame.K_PERIOD,
+    Button(panel, (493, 322, 74, 16), "Battle Entry", key=pygame.K_PERIOD,
            group="shield", text_size=10)
-    Button(panel, (570, 320, 75, 19), "Maximum", key=pygame.K_SLASH,
+    Button(panel, (573, 322, 74, 16), "Maximum", key=pygame.K_SLASH,
            group="shield", text_size=10)
     for i, name in enumerate(("Phaser", "Trp1", "Trp2", "ObltrPd")):
         Button(panel, (493 + i * 39, 55, 37, 18), name, group="combat_weapon",
@@ -466,12 +468,12 @@ def _draw_boarding_panel(panel, state):
     ctx = state.boarding_context()
 
     img_h = internal.size[1] - 40
-    img_w = internal.size[0] - 12
+    img_w = internal.size[0]
     img = pygame.transform.smoothscale(panel.boarding_img, (img_w, img_h))
-    internal.surf.blit(img, (6, 0))
+    internal.surf.blit(img, (0,0))
 
     # --- table under the image ---
-    list_y = img_h - 18  # keep the final row clear of the recessed border
+    list_y = img_h - 12  # adjust vertical position
     label_x = 12  # red label position
     value_x = 90  # green value position
 
@@ -644,25 +646,18 @@ def _draw_science_scope(panel, state, scope_label="scope", compact=False):
 
 def _draw_navigation(state, current_time):
     panel = P["Navigation Console"]
-    orbit = panel.get("orbit")
+    objectDisplay = panel.get("object display")
     system = panel.get("system")
-    for disp in (orbit, system):
-        disp.surf.fill(BLACK)
-        grid = pygame.Surface(disp.size, pygame.SRCALPHA)
-        for gx in range(0, disp.rect.width, 21):
-            pygame.draw.line(grid, (255, 255, 255, 40), (gx, 0), (gx, disp.rect.height))
-        for gy in range(0, disp.rect.height, 21):
-            pygame.draw.line(grid, (255, 255, 255, 40), (0, gy), (disp.rect.width, gy))
-        disp.surf.blit(grid, (0, 0))
-    ocx, ocy = orbit.rect.center
-    for radius, ring_color in [(98, (20, 32, 68)), (92, (26, 38, 88))]:
-        pygame.draw.circle(orbit.surf, ring_color, (ocx, ocy), radius, 2)
-    frame_index = (
-        int(current_time * SPHERE_ROTATION_FPS / 1000)
-        % len(orbit.planet_frames)
-    )
-    frame = orbit.planet_frames[frame_index]
-    orbit.surf.blit(frame, frame.get_rect(center=(ocx, ocy)))
+    wfd.ProjectionViewer.rotateFrame(objectDisplay.wireframes['sphere'], 'Y', 0.005)
+    system.surf.fill(BLACK)
+    objectDisplay.surf.fill(BLACK)
+    grid = pygame.Surface(system.size, pygame.SRCALPHA)
+    for gx in range(0, system.rect.width, 21):
+        pygame.draw.line(grid, (255, 255, 255, 40), (gx, 0), (gx, system.rect.height))
+    for gy in range(0, system.rect.height, 21):
+        pygame.draw.line(grid, (255, 255, 255, 40), (0, gy), (system.rect.width, gy))
+    system.surf.blit(grid, (0, 0))
+    objectDisplay.surf.blit(grid, (0, 0))
     cx, cy = system.rect.center
     pygame.draw.circle(system.surf, RED, (cx, cy), 90, 1)
     pygame.draw.circle(system.surf, (60, 120, 220), (cx, cy), 55, 1)
@@ -678,10 +673,7 @@ def _draw_navigation(state, current_time):
     ship_x = max(4, min(system.rect.width - 4, int(cx + (state.system_x - 40) * 2)))
     ship_y = max(4, min(system.rect.height - 4, int(cy + (state.system_y - 23) * 2)))
     pygame.draw.circle(system.surf, GREEN, (ship_x, ship_y), 4)
-    for label, dx, dy in [("N", cx, 10), ("S", cx, disp.rect.height - 10),
-                          ("E", disp.rect.width - 12, cy), ("W", 12, cy)]:
-        text_line(orbit.surf, label, (dx, dy), CYAN, 10, align="center")
-
+    
 
 def _draw_navigation_console_data(state):
     panel = P["Navigation Console"] 
@@ -786,48 +778,9 @@ def _draw_star_map(state):
         pygame.draw.rect(disp.surf, (26, 26, 26), (0, 0, disp.rect.width, 14))
         for i, label in enumerate(("0", "5", "10", "15", "20", "25", "30", "35")):
             fit_text(disp.surf, label, [8 + i * 53, 0, 26, 13], CYAN, 9)
-
-    _draw_star_map_ship(disp.surf, state)
-
-
-def _draw_star_map_ship(surface, state):
-    """Draw the player ship at its continuous galactic position and heading."""
-    # Reserve enough room for the glyph and its label at every map edge.
-    plot = pygame.Rect(12, 25, surface.get_width() - 24, surface.get_height() - 38)
-    galactic_x, galactic_y = state.galactic_position
-    norm_x = max(0.0, min(1.0, galactic_x / 35.0))
-    norm_y = max(0.0, min(1.0, galactic_y / 20.0))
-    ship_x = plot.left + round(norm_x * (plot.width - 1))
-    ship_y = plot.top + round(norm_y * (plot.height - 1))
-
-    heading = math.radians(state.actual_heading - 90)
-    direction = (math.cos(heading), math.sin(heading))
-    if state.hyper_velocity or state.space_velocity:
-        wake_start = (ship_x - round(direction[0] * 15),
-                      ship_y - round(direction[1] * 15))
-        wake_end = (ship_x - round(direction[0] * 8),
-                    ship_y - round(direction[1] * 8))
-        pygame.draw.line(surface, CYAN, wake_start, wake_end, 2)
-
-    points = [
-        (ship_x + round(math.cos(heading) * 8),
-         ship_y + round(math.sin(heading) * 8)),
-        (ship_x + round(math.cos(heading + 2.45) * 6),
-         ship_y + round(math.sin(heading + 2.45) * 6)),
-        (ship_x + round(math.cos(heading - 2.45) * 6),
-         ship_y + round(math.sin(heading - 2.45) * 6)),
-    ]
-    pygame.draw.circle(surface, BLACK, (ship_x, ship_y), 10)
-    pygame.draw.circle(surface, CYAN, (ship_x, ship_y), 10, 1)
-    pygame.draw.polygon(surface, GREEN, points)
-    pygame.draw.polygon(surface, WHITE, points, 1)
-
-    label = pygame.Rect(0, 0, 34, 10)
-    label.centerx = ship_x
-    label.bottom = ship_y - 11 if ship_y >= plot.top + 18 else ship_y + 21
-    label.clamp_ip(surface.get_rect().inflate(-4, -4))
-    pygame.draw.rect(surface, BLACK, label)
-    fit_text(surface, "SHIP", label, GREEN, 8, align="center")
+        ship_x = max(6, min(disp.rect.width - 8, int(state.region_x / 35 * disp.rect.width)))
+        ship_y = max(18, min(disp.rect.height - 8, int(state.region_y / 20 * disp.rect.height)))
+        pygame.draw.rect(disp.surf, MAGENTA, (ship_x - 6, ship_y - 6, 12, 12), 2)
 
 
 def _draw_status_indicators(state):
@@ -1313,7 +1266,7 @@ def _draw_damage(panel, state):
     disp = panel.get("velocity")  # rightmost display hosts the dynamic ship
     disp.surf.fill(BLACK)
     base_x = 6
-    ship_box = pygame.Rect(base_x + 2, 18, 142, 100)
+    ship_box = pygame.Rect(base_x + 2, 24, 142, 108)
     ship_img = asset("shipdmg.png")
     ship_mask = pygame.mask.from_surface(ship_img)
     ship_rects = ship_mask.get_bounding_rects()
@@ -1321,22 +1274,11 @@ def _draw_damage(panel, state):
         ship_rect = ship_rects[0]
         ship_crop = pygame.Surface((ship_rect.width, ship_rect.height), pygame.SRCALPHA)
         ship_crop.blit(ship_img, (0, 0), ship_rect)
-        split_y = min(51, ship_rect.height - 1)
-        gap = 8
-        scale = min(ship_box.width / ship_rect.width,
-                    (ship_box.height - gap) / ship_rect.height)
-        ship_w = max(1, int(ship_rect.width * scale))
-        top_h = max(1, int(split_y * scale))
-        bottom_h = max(1, int((ship_rect.height - split_y) * scale))
-        content_y = ship_box.y + (ship_box.height - top_h - gap - bottom_h) // 2
-        content_x = ship_box.x + (ship_box.width - ship_w) // 2
-        top = pygame.transform.scale(ship_crop.subsurface(0, 0, ship_rect.width, split_y),
-                                     (ship_w, top_h))
-        bottom = pygame.transform.scale(
-            ship_crop.subsurface(0, split_y, ship_rect.width, ship_rect.height - split_y),
-            (ship_w, bottom_h))
-        disp.surf.blit(top, (content_x, content_y))
-        disp.surf.blit(bottom, (content_x, content_y + top_h + gap))
+        scale = min(ship_box.width / ship_rect.width, ship_box.height / ship_rect.height)
+        ship_size = (max(1, int(ship_rect.width * scale)), max(1, int(ship_rect.height * scale)))
+        ship_scaled = pygame.transform.scale(ship_crop, ship_size)
+        ship_pos = ship_box.move((ship_box.width - ship_size[0]) // 2, (ship_box.height - ship_size[1]) // 2)
+        disp.surf.blit(ship_scaled, ship_pos)
 
 
 def _sync_damage_buttons(panel, state):
@@ -1609,92 +1551,25 @@ def _draw_shields(panel, state):
     box = pygame.Rect(485, 172, 165, 170)
     pygame.draw.rect(panel.surf, PANEL_BG, box)
     pygame.draw.rect(panel.surf, GREY, box, 2)
-
-    # Keep the header separate from the diagram so neither the title nor the AAS
-    # state competes with sector values for space.
-    fit_text(panel.surf, "Shields", [box.x + 7, box.y + 3, 75, 16], BLACK, 13,
-             align="left")
-    aas = pygame.Rect(box.right - 42, box.y + 4, 35, 15)
-    pygame.draw.rect(panel.surf, GREEN if state.aas_enabled else BUTTON_FACE, aas)
-    pygame.draw.rect(panel.surf, BLACK, aas, 1)
-    fit_text(panel.surf, "AAS", aas.inflate(-4, -1), BLACK, 10)
-
-    center = (box.centerx, box.y + 72)
-    outer_radius = 51
-    inner_radius = 34
-    pygame.draw.circle(panel.surf, BLACK, center, outer_radius)
-
-    # Small gaps make the four facings distinct at this compact scale.  Intensity
-    # communicates remaining strength while red remains reserved for a depleted
-    # facing, matching the visual language used elsewhere in the cockpit.
-    arcs = [(228, 312), (138, 222), (48, 132), (318, 402)]
+    fit_text(panel.surf, "Shields", [box.x + 4, box.y + 2, 80, 14], CYAN, 11, align="left")
+    center = (box.centerx, box.y + 70)
+    arcs = [(225, 315), (135, 225), (45, 135), (315, 45)]
     for idx, (start, end) in enumerate(arcs):
         strength = state.shield_strength[idx] if state.shields_up else 0
-        if strength <= 0:
-            sector_color = RED
-        elif strength <= 500:
-            sector_color = (35, 125, 38)
-        elif strength <= 1000:
-            sector_color = (42, 185, 43)
-        else:
-            sector_color = GREEN
-        _arc_quadrant(panel.surf, center, inner_radius, outer_radius,
-                      start, end, sector_color)
-
-    pygame.draw.circle(panel.surf, BLACK, center, outer_radius, 2)
-    pygame.draw.circle(panel.surf, BLACK, center, inner_radius)
-
-    # Horizontal values fit the broad top/bottom sectors.  Side values rotate to
-    # follow their narrow sectors instead of shrinking or leaking into the hub.
-    horizontal_value_boxes = {
-        0: pygame.Rect(center[0] - 24, center[1] - 49, 48, 14),
-        2: pygame.Rect(center[0] - 24, center[1] + 35, 48, 14),
-    }
-    vertical_value_boxes = {
-        1: pygame.Rect(center[0] - 49, center[1] - 22, 14, 44),
-        3: pygame.Rect(center[0] + 35, center[1] - 22, 14, 44),
-    }
-    sector_boxes = [
-        pygame.Rect(center[0] - 14, center[1] - 33, 28, 14),
-        pygame.Rect(center[0] - 34, center[1] - 7, 23, 14),
-        pygame.Rect(center[0] - 14, center[1] + 19, 28, 14),
-        pygame.Rect(center[0] + 11, center[1] - 7, 23, 14),
-    ]
-    for idx, sector_box in enumerate(sector_boxes):
-        strength = state.shield_strength[idx] if state.shields_up else 0
-        # Black is clearest on the two brighter greens; white is retained for
-        # dark green and red sectors.  The numeric value also makes state clear
-        # without relying on color alone.
-        value_color = BLACK if strength > 500 else WHITE
-        if idx in horizontal_value_boxes:
-            fit_text(panel.surf, strength, horizontal_value_boxes[idx],
-                     value_color, 12, align="center")
-        else:
-            angle = 90 if idx == 1 else -90
-            _draw_rotated_text(panel.surf, strength, vertical_value_boxes[idx],
-                               value_color, 12, angle)
-        fit_text(panel.surf, f"S{idx + 1}", sector_box, WHITE, 11,
-                 align="center")
-
-    ship = pygame.transform.smoothscale(asset("babaaa 2.png"), (24, 34))
-    ship.fill((20, 45, 16), special_flags=pygame.BLEND_RGB_ADD)
-    panel.surf.blit(ship, (center[0] - 12, center[1] - 17))
-
-
-def _draw_rotated_text(surface, text, rect, fg, start_size, angle):
-    """Fit and center a rotated label without allowing it outside ``rect``."""
-    rect = pygame.Rect(rect)
-    label = None
-    for size in range(start_size, 6, -1):
-        candidate = font(size, True).render(str(text), True, color(fg))
-        candidate = pygame.transform.rotate(candidate, angle)
-        if candidate.get_width() <= rect.width and candidate.get_height() <= rect.height:
-            label = candidate
-            break
-    if label is None:
-        label = pygame.transform.rotate(
-            font(6, True).render(str(text), True, color(fg)), angle)
-    surface.blit(label, label.get_rect(center=rect.center))
+        col = GREEN if strength >= 500 else (YELLOW if strength > 0 else RED)
+        label = f"{idx + 1}:{strength}"
+        _arc_quadrant(panel.surf, center, 38, 56, start, end, col)
+        mid = math.radians((start + (end if end > start else end + 360)) / 2)
+        lx = center[0] + int(47 * math.cos(mid))
+        ly = center[1] + int(47 * math.sin(mid))
+        text_line(panel.surf, label, (lx, ly), BLACK, 9, align="center")
+    panel.surf.blit(pygame.transform.smoothscale(asset("babaaa 2.png"), (28, 40)),
+                    (center[0] - 14, center[1] - 20))
+    text_line(panel.surf, "Shield Mode", (box.x + 6, box.y + 118), CYAN, 10)
+    fit_text(panel.surf, state.shield_policy, [box.x + 70, box.y + 111, 80, 14],
+             GREEN if state.shields_up else RED, 10, align="left")
+    fit_text(panel.surf, f"AAS: {'Y' if state.aas_enabled else 'N'}",
+             [box.x + 6, box.y + 132, 70, 13], CYAN, 9, align="left")
 
 
 def _draw_fire_controls(panel, state):

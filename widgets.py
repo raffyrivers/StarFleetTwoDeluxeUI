@@ -1,7 +1,6 @@
 """UI widgets: framed panels, clickable buttons, displays, and status bars."""
-
+# TODO: Instead of having multiple display classes. Use a single class for all types of displays
 import pygame
-import core
 from core import (BLACK, SHELL_BG, PANEL_BG, FRAME, FRAME_DIM, BEVEL_LIGHT, BEVEL_DARK,
                   BUTTON_FACE, BUTTON_ACTIVE, BUTTON_HOVER, CYAN, GREEN, RED,
                   YELLOW, GREY, WHITE, color, font, fit_text, text_line)
