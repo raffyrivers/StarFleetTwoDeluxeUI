@@ -1,3 +1,14 @@
+'''
+Simple 3D engine for pygame:
+Capable of rendering simple 3D objects. Built in sphere rendering.
+The engine is capable of simple transformations such as translation, scaling, and rotation.
+
+Rotation is about the center of each object. For an object to rotate about a arbitrary point,
+the changeOrigin() function will have an object rotate about the point.
+
+TODO: Remove white line from texture wrapped sphere. 
+'''
+
 from . import wireframe as wf
 import pygame
 import numpy as np
@@ -79,8 +90,8 @@ class ProjectionViewer:
         for _, (top_left, top_right, bottom_right, bottom_left), row, sector in sorted(cells):
             u0 = sector / sectors
             u1 = (sector + 1) / sectors
-            v0 = row / (rows - 1)
-            v1 = (row + 1) / (rows - 1)
+            v0 = 1 - row / (rows - 1)
+            v1 = 1 - (row + 1) / (rows - 1)
             self._drawTexturedTriangle(
                 wireframe, texture_pixels, texture_width, texture_height,
                 (top_left, top_right, bottom_right),

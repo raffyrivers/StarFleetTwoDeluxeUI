@@ -14,7 +14,7 @@ class Sphere:
         theta = 2 * np.pi * (sec_step/self._sec_count)
         phi = np.pi / 2 - np.pi * (stack_step/self._stack_count)
 
-        for i in range(self._stack_count):
+        for i in range(self._stack_count + 1):
             theta = np.pi / 2 - i * stack_step
             xy = self.radius * np.cos(theta)
             z = self.radius * np.sin(theta)
