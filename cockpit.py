@@ -13,13 +13,13 @@ from threeDEngine import wireframe as wf
 from core import (BLACK, PANEL_BG, FRAME, FRAME_DIM, BUTTON_FACE, CYAN, GREEN,
                   RED, YELLOW, GREY, MAGENTA, WHITE, color, font, fit_text,
                   text_line, asset)
-from widgets import Panel, Button, Text, Display, CircleDisplay, StatusBar
-from video import VideoDisplay
+from widgets import Panel, Button, Text, Display, CircleDisplay, StatusBar, VideoDisplay
 
 P = {}            # panels keyed by tab/name
 WARN_WORDS = {"CAUTION", "LOW", "HOLD", "QUEUED", "LOCK"}
 SPHERE_FRAME_COUNT = 120
 SPHERE_ROTATION_FPS = 10
+SHIP_CX = -40
 
 # Communication feed content (authentic Krellan briefing data).
 MESSAGES = [
@@ -80,71 +80,6 @@ def table(surface, headers, rows, x, y, widths, line_h=14, size=10, column_lines
             
             cx += widths[i]
 
-
-def _project_sphere_texture(texture, diameter, longitude_offset=0.0):
-    """Project an equirectangular texture onto a shaded orthographic sphere."""
-    sphere = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
-    center = (diameter - 1) / 2
-    radius = center - 1
-    texture_width, texture_height = texture.get_size()
-    latitude_map = pygame.Surface((texture_width, diameter), pygame.SRCALPHA)
-
-    for y in range(diameter):
-        normal_y = max(-1, min(1, (center - y) / radius))
-        latitude = math.asin(normal_y)
-        texture_y = int((0.5 - latitude / math.pi) * texture_height)
-        texture_y = max(0, min(texture_height - 1, texture_y))
-        latitude_map.blit(
-            texture.subsurface((0, texture_y, texture_width, 1)), (0, y)
-        )
-
-    for x in range(diameter):
-        normal_x = (x - center) / radius
-        if abs(normal_x) > 1:
-            continue
-        normal_z = math.sqrt(1 - normal_x * normal_x)
-        longitude = math.asin(normal_x)
-        texture_x = int(
-            (0.5 + longitude / (2 * math.pi) + longitude_offset) * texture_width
-        ) % texture_width
-        half_height = radius * normal_z
-        top = max(0, round(center - half_height))
-        bottom = min(diameter, round(center + half_height) + 1)
-        column = latitude_map.subsurface((texture_x, 0, 1, diameter))
-        sphere.blit(
-            pygame.transform.smoothscale(column, (1, bottom - top)), (x, top)
-        )
-
-    mask_size = 32
-    mask = pygame.Surface((mask_size, mask_size), pygame.SRCALPHA)
-    mask_center = (mask_size - 1) / 2
-    mask_radius = mask_center
-    light_x, light_y, light_z = -0.38, 0.46, 0.80
-    for y in range(mask_size):
-        normal_y = (mask_center - y) / mask_radius
-        for x in range(mask_size):
-            normal_x = (x - mask_center) / mask_radius
-            distance = normal_x * normal_x + normal_y * normal_y
-            if distance > 1:
-                continue
-            normal_z = math.sqrt(1 - distance)
-            diffuse = max(
-                0, normal_x * light_x + normal_y * light_y + normal_z * light_z
-            )
-            brightness = 0.42 + 0.58 * diffuse
-            rim = min(0.22, (1 - normal_z) ** 2 * 0.3)
-            shade = round(255 * brightness * (1 - rim))
-            mask.set_at((x, y), (shade, shade, min(255, shade + 8), 255))
-
-    mask = pygame.transform.smoothscale(mask, (diameter, diameter))
-    sphere.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-
-    pygame.draw.circle(
-        sphere, (90, 185, 235), (round(center), round(center)), round(radius), 1
-    )
-    return sphere
-
-
 # --- panel construction -----------------------------------------------------
 
 def build():
@@ -187,11 +122,8 @@ def build():
 
 def _build_primary():
     panel = P["Primary Display"]
-    video = VideoDisplay(panel, "primary", (panel.width - 10, 320), (5, 5))
-    video.set_videos(["DeepSpace.mp4", "EarthOrbit.mp4"])
-    video.fallback.label = "EARTH ORBIT"
-    if len(video.sources) > 1:
-        video.index = 1
+    video = VideoDisplay(panel, "primary", (panel.width - 10, 320), (5, 5), 2)
+    video.set_videos(["DeepSpace.mp4"])
     Text(panel, (5, 350), "Msn Elapsed", "cyan", 11)
     panel.lbl_elapsed = pygame.Rect(95, 344, 84, 18)
     Text(panel, (190, 350), "Time Left", "cyan", 11)
@@ -557,9 +489,17 @@ def draw(state, current_time):
     _draw_log(state)
 
 def _draw_primary(state):
+    global SHIP_CX
     panel = P["Primary Display"]
-    pygame.draw.rect(panel.surf, BLACK, panel.lbl_elapsed)
-    pygame.draw.rect(panel.surf, FRAME_DIM, panel.lbl_elapsed, 1)
+    video = panel.get("primary")
+    mercator = pygame.transform.scale(asset("notEarth.png"), video.size)
+    ship = pygame.transform.rotate(asset("combcShip.png"), -90)
+    video.surf.blit(mercator, (0,0))
+    SHIP_CX += 0.7
+    if SHIP_CX >= video.size[0]:
+        SHIP_CX = -30
+    video.surf.blit(ship, (SHIP_CX, mercator.get_height() // 2))
+
     fit_text(panel.surf, f"{state.mission_elapsed_days:.2f} Days", panel.lbl_elapsed, GREEN, 13)
     pygame.draw.rect(panel.surf, BLACK, panel.lbl_left)
     pygame.draw.rect(panel.surf, FRAME_DIM, panel.lbl_left, 1)
@@ -648,7 +588,7 @@ def _draw_navigation(state, current_time):
     panel = P["Navigation Console"]
     objectDisplay = panel.get("object display")
     system = panel.get("system")
-    wfd.ProjectionViewer.rotateFrame(objectDisplay.wireframes['sphere'], 'Y', 0.005)
+    wfd.ProjectionViewer.rotateFrame(objectDisplay.wireframes['sphere'], 'Y', 0.01)
     system.surf.fill(BLACK)
     objectDisplay.surf.fill(BLACK)
     grid = pygame.Surface(system.size, pygame.SRCALPHA)
