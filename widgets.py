@@ -1,6 +1,11 @@
 """UI widgets: framed panels, clickable buttons, displays, and status bars."""
-# TODO: Instead of having multiple display classes. Use a single class for all types of displays
+import os
+import random
 import pygame
+import core
+from core import ASSET_DIR, FRAME, CYAN
+import pyvidplayer2
+
 from core import (BLACK, SHELL_BG, PANEL_BG, FRAME, FRAME_DIM, BEVEL_LIGHT, BEVEL_DARK,
                   BUTTON_FACE, BUTTON_ACTIVE, BUTTON_HOVER, CYAN, GREEN, RED,
                   YELLOW, GREY, WHITE, color, font, fit_text, text_line)
@@ -77,6 +82,55 @@ class Panel:
             fit_text(surface, self.tab_label, tab.inflate(-6, -2), BLACK, 13,
                      align="left")
 
+class VideoDisplay:
+    """Cycles a list of clips on a panel display"""
+    """video_count explicitly defines video count. Allows for creation of videos using pygame."""
+
+    def __init__(self, panel, label, size, pos, video_count):
+        self.panel = panel
+        self.label = label
+        self.size = size
+        self.pos = pos
+        self.surf = pygame.Surface(size).convert()
+        self.rect = self.surf.get_rect()
+        self.sources = []
+        self.players = []
+        self.index = 0
+        self.video_count = video_count
+        self.z = 1
+        panel.add(self)
+
+    def prepare(self):
+        pass
+
+    def set_videos(self, names):
+        self.sources = names
+        for name in names:
+            try:
+                clip = pyvidplayer2.Video(os.path.join(ASSET_DIR, name))
+                clip.stop()
+                self.players.append(pyvidplayer2.VideoPlayer(clip, self.rect, loop=True))
+            except Exception:
+                pass
+
+    def cycle(self):
+        self.index = (self.index + 1) % self.video_count
+
+    def draw(self):
+        pygame.draw.rect(self.surf, FRAME, self.rect, 1)
+        self.panel.surf.blit(self.surf, self.pos)
+
+    def update(self, events):
+        if self.players and self.index < len(self.players):
+            self.players[self.index].draw(self.surf)
+            self.players[self.index].update(events)
+
+    def close(self):
+        for player in self.players:
+            try:
+                player.close()
+            except Exception:
+                pass
 
 class Button:
     """A bevelled, clickable button. Click and key both call on_toggle."""
