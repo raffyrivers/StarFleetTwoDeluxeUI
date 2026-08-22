@@ -1,2 +1,0 @@
-sound.py files use sounddevice and numpy you can install them through pip install
-while soundpy wav mainly just uses pygame to play sounds you can take the sound wav files from star fleet deluxe beta folder in gaming to reuse still neeed to create unique sound wav files for the krellan ship sound effects 
